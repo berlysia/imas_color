@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>IDOLM@STER MILLIONLIVE! COLORVIEWER</title>
+    <script src="createjs.js"></script>
+    <style type="text/css" media="screen">
+      #main{
+        margin: 0 auto;
+/*        width: 800px;*/
+      }
+    </style>
+  </head>
+  <body>
+    <div id="main">
+      <canvas id="mainCanvas" width="700" height="700"></canvas>
+      <canvas id="subCanvas" width="1100" height="700"></canvas>
+      <form id="checkboxes">
+        <div id="Vo"></div>
+        <div id="Da"></div>
+        <div id="Vi"></div>
+      </form>
+    </div>
+    <script>
+      var form = document.getElementById('checkboxes');
+      var hex2hsv = function(hex){
+        var r = parseInt("0x"+hex.substr(1,2)),
+            g = parseInt("0x"+hex.substr(3,2)),
+            b = parseInt("0x"+hex.substr(5,2)),
+            h, s, v;
+        var max = Math.max(r,Math.max(g,b)), min = Math.min(r,Math.min(g,b));
+
+        v = max;
+        if(min===max) h = 0;
+        else if(min===b) h = 60*((g-r)/(max-min))+60
+        else if(min===r) h = 60*((b-g)/(max-min))+180
+        else if(min===g) h = 60*((r-b)/(max-min))+300
+        else h = 0;
+        s = (max-min)/parseFloat(max);
+
+        return {h: h, s: s, v: v};
+      };
+
+      createjs.Graphics.prototype.drawArc = function(x,y,radius,startAngle,endAngle) {
+      	this.moveTo(x,y).lineTo(x+radius*Math.cos(startAngle),y+radius*Math.sin(startAngle)).arc(x,y,radius,startAngle,endAngle);
+      }
+
+      var hitTest = function(shape,stage){
+        var lp = shape.globalToLocal(stage.mouseX,stage.mouseY);
+        return shape.hitTest(lp.x,lp.y);
+      }
+
+      var idols = [
+        {part:"AS", region: "Vo", name:"天海春香", color:"#e22b30", selected: false},
+        {part:"AS", region: "Vo", name:"如月千早", color:"#2743d2", selected: false},
+        {part:"AS", region: "Vi", name:"萩原雪歩", color:"#d3dde9", selected: false},
+        {part:"AS", region: "Da", name:"高槻やよい", color:"#f39939", selected: false},
+        {part:"AS", region: "Vi", name:"秋月律子", color:"#01a860", selected: false},
+        {part:"AS", region: "Vo", name:"三浦あずさ", color:"#9238be", selected: false},
+        {part:"AS", region: "Vo", name:"水瀬伊織", color:"#fd99e1", selected: false},
+        {part:"AS", region: "Da", name:"菊地真", color:"#515558", selected: false},
+        {part:"AS", region: "Vi", name:"双海亜美/真美", color:"#ffe43f", selected: false},
+        {part:"AS", region: "Vi", name:"星井美希", color:"#b4e04b", selected: false},
+        {part:"AS", region: "Da", name:"我那覇響", color:"#01adb9", selected: false},
+        {part:"AS", region: "Vo", name:"四条貴音", color:"#a6126a", selected: false},
+        {part:"ML", region: "Vi", name:"伊吹翼", color:"#fed552", selected: false},
+        {part:"ML", region: "Da", name:"エミリー", color:"#554171", selected: false},
+        {part:"ML", region: "Da", name:"大神環", color:"#ee762e", selected: false},
+        {part:"ML", region: "Vo", name:"春日未来", color:"#ea5b76", selected: false},
+        {part:"ML", region: "Da", name:"北上麗花", color:"#6bb6b0", selected: false},
+        {part:"ML", region: "Vi", name:"北沢志保", color:"#afa690", selected: false},
+        {part:"ML", region: "Vo", name:"木下ひなた", color:"#d1342c", selected: false},
+        {part:"ML", region: "Da", name:"高坂海美", color:"#e9739b", selected: false},
+        {part:"ML", region: "Da", name:"佐竹美奈子", color:"#58a6dc", selected: false},
+        {part:"ML", region: "Vi", name:"篠宮可憐", color:"#b63b40", selected: false},
+        {part:"ML", region: "Da", name:"島原エレナ", color:"#9bce92", selected: false},
+        {part:"ML", region: "Vo", name:"ジュリア", color:"#d7385f", selected: false},
+        {part:"ML", region: "Vi", name:"周防桃子", color:"#efb864", selected: false},
+        {part:"ML", region: "Vo", name:"高山紗代子", color:"#7f6575", selected: false},
+        {part:"ML", region: "Vo", name:"田中琴葉", color:"#92cfbb", selected: false},
+        {part:"ML", region: "Vo", name:"天空橋朋花", color:"#bee3e3", selected: false},
+        {part:"ML", region: "Vi", name:"徳川まつり", color:"#5abfb7", selected: false},
+        {part:"ML", region: "Vi", name:"所恵美", color:"#454341", selected: false},
+        {part:"ML", region: "Vi", name:"豊川風花", color:"#7278a8", selected: false},
+        {part:"ML", region: "Vi", name:"中谷育", color:"#f7e78e", selected: false},
+        {part:"ML", region: "Da", name:"永吉昴", color:"#aeb49c", selected: false},
+        {part:"ML", region: "Vi", name:"七尾百合子", color:"#c7b83c", selected: false},
+        {part:"ML", region: "Vi", name:"二階堂千鶴", color:"#f19557", selected: false},
+        {part:"ML", region: "Da", name:"野々原茜", color:"#eb613f", selected: false},
+        {part:"ML", region: "Vo", name:"箱崎星梨花", color:"#ed90ba", selected: false},
+        {part:"ML", region: "Da", name:"馬場このみ", color:"#f1becb", selected: false},
+        {part:"ML", region: "Da", name:"福田のり子", color:"#eceb70", selected: false},
+        {part:"ML", region: "Da", name:"舞浜歩", color:"#e25a9b", selected: false},
+        {part:"ML", region: "Da", name:"真壁瑞希", color:"#99b7dc", selected: false},
+        {part:"ML", region: "Vo", name:"松田亜利沙", color:"#b54461", selected: false},
+        {part:"ML", region: "Vi", name:"宮尾美也", color:"#f19557", selected: false},
+        {part:"ML", region: "Vo", name:"最上静香", color:"#6495cf", selected: false},
+        {part:"ML", region: "Vo", name:"望月杏奈", color:"#7e6ca8", selected: false},
+        {part:"ML", region: "Vi", name:"百瀬莉緒", color:"#f19591", selected: false},
+        {part:"ML", region: "Vo", name:"矢吹可奈", color:"#f5ad3b", selected: false},
+        {part:"ML", region: "Da", name:"横山奈緒", color:"#788bc5", selected: false},
+        {part:"ML", region: "Vi", name:"ロコ", color:"#fff03c", selected: false}
+      ];
+
+      idols.forEach(function(idol,i,a){
+        console.log(JSON.stringify(idol));
+        idol.hsv = hex2hsv(idol.color);
+        var target = document.getElementById(idol.region);
+        var pair = document.createElement('span');
+        var check = document.createElement('input');
+        check.type = "checkbox";
+        check.name = "idol_"+i;
+        check.id = "idol_"+i;
+        check.value = i;
+        pair.appendChild(check);
+        pair.appendChild(document.createTextNode(idol.name));
+
+        target.appendChild(pair);
+      });
+
+      (function(window){
+        var baseColor = "#222", guideColor = "#eee";
+        var hsStage, hvStage;
+        var hsGuideLine, hvGuideLine, hsGuideCircle, hvGuideArc;
+        var hsTicker, hvTicker;
+        var infoRect, infoText;
+
+        function hsInit(){
+          var baseCircle, radius = 300, padding = 50;
+          hsStage = new createjs.Stage('mainCanvas');
+          circles = [];
+
+          createjs.Ticker.setFPS(30);
+
+          var background = new createjs.Shape();
+          background.graphics.beginFill("#999").drawRect(0,0,700,700);
+          hsStage.addChild(background);
+
+          baseCircle = new createjs.Shape();
+          baseCircle.graphics.beginFill(baseColor).drawCircle(0,0,radius+10);
+          baseCircle.y = padding + radius;
+          baseCircle.x = padding + radius;
+          hsStage.addChild(baseCircle);
+
+          idols.forEach(function(idol,i,a){
+            var circle = new createjs.Shape();
+            var hsv = idol.hsv;
+            var theta = hsv.h, scale = hsv.s;
+
+            if(idol.part==="AS") circle.graphics.beginFill(idol.color).drawPolyStar(0,0,10,5,0.6,-90);
+            else circle.graphics.beginFill(idol.color).drawCircle(0,0,7);
+
+            circle.y = padding + radius + Math.sin(theta*(Math.PI/180))*scale*radius;
+            circle.x = padding + radius + Math.cos(theta*(Math.PI/180))*scale*radius;
+            idol.hs = circle;
+            hsStage.addChild(circle);
+          });
+
+          var infoPosition = {x: 40, y: 520};
+          infoRect = new createjs.Shape(), infoText = new createjs.Text("init","24px Avenir Next","#ddd");
+          infoRect.graphics.setStrokeStyle(5).beginStroke("#666").beginFill("#222").drawRoundRect(infoPosition.x+25,infoPosition.y+30,210,110,5);
+          infoText.x = infoPosition.x+40;
+          infoText.y = infoPosition.y+40;
+          hsStage.addChild(infoRect);
+          hsStage.addChild(infoText);
+
+          hsStage.update();
+
+          createjs.Ticker.addEventListener('tick', function(){
+            if(hitTest(baseCircle,hsStage)){
+              idols.forEach(hsTicker);
+              idols.forEach(hvTicker);
+            }
+            hsStage.update();
+          });
+
+          hsTicker = function(idol,i,a){
+            idol.hs.alpha = 1;
+            var localPoint = idol.hs.globalToLocal(hsStage.mouseX,hsStage.mouseY);
+            if(hitTest(idol.hs,hsStage) || hitTest(idol.hv,hvStage)){
+              idol.hs.alpha = .5;
+              infoText.text = idol.name+"\n"+idol.color;
+
+              if(hsGuideLine && hsStage.contains(hsGuideLine)) hsStage.removeChild(hsGuideLine);
+              var g = new createjs.Graphics();
+              g.beginStroke(guideColor);
+              g.moveTo(baseCircle.x,baseCircle.y);
+              g.lineTo(baseCircle.x+Math.cos(idol.hsv.h*(Math.PI/180))*radius,baseCircle.y+Math.sin(idol.hsv.h*(Math.PI/180))*radius);
+              hsGuideLine = new createjs.Shape(g);
+              hsStage.addChild(hsGuideLine);
+
+              if(hsGuideCircle && hsStage.contains(hsGuideCircle)) hsStage.removeChild(hsGuideCircle);
+              hsGuideCircle = new createjs.Shape();
+              hsGuideCircle.graphics.beginStroke(guideColor).drawCircle(0,0,idol.hsv.s*radius);
+              hsGuideCircle.x = baseCircle.x;
+              hsGuideCircle.y = baseCircle.y;
+              hsStage.addChild(hsGuideCircle);
+
+              // if(typeof i === "number") hvTicker(idol,null,null,true);
+            }
+          };
+        }
+
+        function hvInit(){
+          var zeroX = 550, zeroY = 650, radius = 600, power = 2;
+          hvStage = new createjs.Stage('subCanvas');
+
+          var background = new createjs.Shape();
+          background.graphics.beginFill("#999").drawRect(0,0,1100,700);
+          hvStage.addChild(background);
+
+          var baseArc = new createjs.Shape();
+          baseArc.graphics.beginFill(baseColor).drawArc(zeroX,zeroY,radius+10,210*(Math.PI/180),330*(Math.PI/180));
+          hvStage.addChild(baseArc);
+
+          idols.forEach(function(idol,i,a){
+            var plotObj = new createjs.Shape();
+            var hsv = idol.hsv;
+            var theta = hsv.h/3., scale = Math.pow(hsv.v/255.,power);
+
+            if(idol.part==="AS") plotObj.graphics.beginFill(idol.color).drawPolyStar(0,0,10,5,0.6,-90);
+            else plotObj.graphics.beginFill(idol.color).drawCircle(0,0,7);
+
+            plotObj.y = zeroY + Math.sin((210+theta)*(Math.PI/180))*scale*radius;
+            plotObj.x = zeroX + Math.cos((210+theta)*(Math.PI/180))*scale*radius;
+            idol.hv = plotObj;
+            hvStage.addChild(plotObj);
+          });
+
+          createjs.Ticker.addEventListener('tick', function(){
+            if(hitTest(baseArc,hvStage)){
+              idols.forEach(hvTicker);
+              idols.forEach(hsTicker);
+            }
+            hvStage.update();
+          });
+
+          hvTicker = function(idol,i,a){
+            idol.hv.alpha = 1;
+            if(hitTest(idol.hs,hsStage) || hitTest(idol.hv,hvStage)){
+              idol.hv.alpha = .5;
+              infoText.text = idol.name+"\n"+idol.color;
+
+              if(hvGuideLine && hvStage.contains(hvGuideLine)) hvStage.removeChild(hvGuideLine);
+              var g = new createjs.Graphics();
+              g.beginStroke(guideColor);
+              g.moveTo(zeroX,zeroY);
+              g.lineTo(zeroX+Math.cos((idol.hsv.h/3.+210)*(Math.PI/180))*radius,zeroY+Math.sin((idol.hsv.h/3.+210)*(Math.PI/180))*radius);
+              hvGuideLine = new createjs.Shape(g);
+              hvStage.addChild(hvGuideLine);
+
+              if(hvGuideArc && hvStage.contains(hvGuideArc)) hvStage.removeChild(hvGuideArc);
+              var gg = new createjs.Graphics();
+              gg.beginStroke(guideColor);
+              var scale = Math.pow(idol.hsv.v/255.,power);
+              gg.moveTo(zeroX+Math.cos(210*(Math.PI/180))*scale*radius,zeroY+Math.sin(210*(Math.PI/180))*scale*radius);
+              gg.arc(zeroX,zeroY,scale*radius,210*(Math.PI/180),330*(Math.PI/180));
+              hvGuideArc = new createjs.Shape(gg);
+              hvStage.addChild(hvGuideArc);
+              console.log(idol.name, i);
+            }
+          }
+
+          hvStage.update();
+        }
+
+        window.addEventListener('load',function(){
+          window.removeEventListener('load',arguments.callee);
+
+          hsInit();
+          hvInit();
+        },false);
+      })(window);
+    </script>
+  </body>
+</html>
